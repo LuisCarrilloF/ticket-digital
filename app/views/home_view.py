@@ -1,6 +1,8 @@
 import flet as ft
 
 from models.business import Business
+from services.storage import load_businesses, save_businesses
+from views.add_negocio_view import AddNegocioView
 
 
 class HomeView:
@@ -14,18 +16,7 @@ class HomeView:
         self.MIN_WIDTH = 360
         self.MAX_CONTENT_WIDTH = 700
 
-        self.businesses = [
-            Business(
-                name="Diversiones Santa Ana",
-                description="Renta de Muebles y Artículos",
-                logo="logos/diversiones_santa_ana.png",
-            ),
-            Business(
-                name="COREXIS",
-                description="Servicio Técnico & Soluciones Digitales",
-                logo="logos/corexis.png",
-            ),
-        ]
+        self.businesses = load_businesses()
 
         self._build()
 
@@ -310,5 +301,10 @@ class HomeView:
     # ============================================================
 
     def _agregar_negocio(self, e):
+        AddNegocioView(self.page, self._business_saved)
 
-        print("Agregar negocio")
+    def _business_saved(self, business):
+        if business is not None:
+            self.businesses.append(business)
+            save_businesses(self.businesses)
+        self._build()

@@ -3,6 +3,7 @@ import flet as ft
 from models.business import Business
 from services.storage import load_businesses, save_businesses
 from views.add_negocio_view import AddNegocioView
+from views.client_view import ClientView
 
 
 class HomeView:
@@ -291,10 +292,7 @@ class HomeView:
     # ============================================================
 
     def _select_business(self, business: Business):
-
-        print(
-            f"Negocio seleccionado: {business.name}"
-        )
+        ClientView(self.page, business)
 
     # ============================================================
     # AGREGAR NEGOCIO

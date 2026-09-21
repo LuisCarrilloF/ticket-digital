@@ -88,7 +88,7 @@ class HomeView:
                         content=ft.Text(
                             "+",
                             size=28,
-                            color="#777777",
+                            color="#777777", # Color del Icono
                         ),
                         width=52,
                         height=52,
@@ -103,6 +103,7 @@ class HomeView:
                                 "Agregar negocio",
                                 size=16,
                                 weight=ft.FontWeight.BOLD,
+                                color="black"
                             ),
 
                             ft.Text(
@@ -233,6 +234,7 @@ class HomeView:
                 ft.Text(
                     business.name,
                     size=16,
+                    color="#000000",
                     weight=ft.FontWeight.BOLD,
                     max_lines=1,
                     overflow=ft.TextOverflow.ELLIPSIS,

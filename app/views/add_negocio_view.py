@@ -20,10 +20,18 @@ class AddNegocioView:
         self.name_field = ft.TextField(
             label="Nombre del negocio",
             autofocus=True,
+            color= "grey",
+            bgcolor= "#FFFFFF",
+            border_radius= 12,
+            border_color= "grey"
         )
         self.description_field = ft.TextField(
             label="Descripción",
             hint_text="Ej. Renta de muebles y artículos",
+            color= "grey",
+            bgcolor= "#FFFFFF",
+            border_radius= 12,
+            border_color= "grey"
         )
         self.image_preview = ft.Image(
             src="logos/corexis.png",
@@ -43,30 +51,37 @@ class AddNegocioView:
                             icon=ft.Icons.ARROW_BACK,
                             tooltip="Regresar",
                             on_click=self._cancelar,
+                            icon_color="black",
                         ),
                         ft.Text(
                             "Agregar negocio",
                             size=26,
                             weight=ft.FontWeight.BOLD,
+                            color= "black"
                         ),
                     ],
                 ),
                 ft.Text(
                     "Personaliza el nombre, descripción e imagen de tu negocio.",
-                    color="#343333",
+                    color="grey",
                 ),
                 ft.Container(
                     content=self.image_preview,
                     width=160,
                     height=160,
-                    bgcolor="#F5F3ED",
+                    bgcolor="#FEFEFE", # Color para la imagen
                     border_radius=16,
+                    border=ft.Border.all(1, "grey"),
                     alignment=ft.Alignment.CENTER,
                 ),
                 ft.OutlinedButton(
                     "Elegir imagen",
                     icon=ft.Icons.IMAGE_OUTLINED,
                     on_click=self._choose_image,
+                    style=ft.ButtonStyle(
+                        bgcolor="#1E0F60",
+                        color="#FFFFFF",
+                    ),
                 ),
                 self.image_error,
                 self.name_field,
@@ -74,13 +89,21 @@ class AddNegocioView:
                 ft.Row(
                     controls=[
                         ft.OutlinedButton(
-                            "Cancelar",
+                            "Cancelar", # Cancelar Boton
                             on_click=self._cancelar,
+                            style=ft.ButtonStyle(
+                                bgcolor="red",
+                                color="#FFFFFF",
+                            ),
                         ),
                         ft.ElevatedButton(
-                            "Guardar negocio",
+                            "Guardar negocio", #guardar negocio boton
                             icon=ft.Icons.SAVE_OUTLINED,
                             on_click=self._save_business,
+                            style=ft.ButtonStyle(
+                                bgcolor="#0E085B",
+                                color="#FFFFFF",
+                            ),
                         ),
                     ],
                     alignment=ft.MainAxisAlignment.END,
@@ -96,7 +119,7 @@ class AddNegocioView:
             ft.Container(
                 content=contenido,
                 expand=True,
-                bgcolor="#F8F7F2",
+                bgcolor="#F8F7F2", # Color de Fondo de la vista
                 padding=20,
                 alignment=ft.Alignment.TOP_CENTER,
             )

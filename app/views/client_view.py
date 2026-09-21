@@ -15,6 +15,7 @@ class ClientView:
             "Datos del cliente",
             size=28,
             weight=ft.FontWeight.BOLD,
+            color= "#000000",
         )
         negocio = ft.Text(
             f"Ticket para {self.business.name}",
@@ -25,11 +26,15 @@ class ClientView:
             label="Nombre completo",
             hint_text="Ej. Juan Pérez",
             autofocus=True,
+            color="#777777",
+            bgcolor= "#FDF6F6"
         )
         telefono = ft.TextField(
             label="Teléfono",
             hint_text="Ej. 3121234567",
             keyboard_type=ft.KeyboardType.PHONE,
+            color="#777777",
+            bgcolor= "#FDF6F6"
         )
         direccion = ft.TextField(
             label="Dirección",
@@ -37,6 +42,8 @@ class ClientView:
             multiline=True,
             min_lines=2,
             max_lines=3,
+            color= "#505050",
+            bgcolor= "#FDF6F6"
         )
         mensaje = ft.Text(color="#B3261E")
 
@@ -60,10 +67,17 @@ class ClientView:
         boton_continuar = ft.ElevatedButton(
             content=ft.Text("Continuar"),
             on_click=continuar,
+            bgcolor= "#000D55",
+            color= "#F2F3F8"
         )
         boton_regresar = ft.TextButton(
             content=ft.Text("Regresar"),
+            icon=ft.Icons.ARROW_BACK,
             on_click=self._regresar,
+            style=ft.ButtonStyle(
+                bgcolor="#0C0C0C",
+                color="#F2F3F8",
+            ),
         )
 
         contenido = ft.Column(
@@ -87,12 +101,11 @@ class ClientView:
                 content=contenido,
                 expand=True,
                 padding=40,
-                bgcolor="#F8F7F2",
+                bgcolor="#EEEEEE",
             )
         )
         self.page.update()
 
     def _regresar(self, e):
         from views.home_view import HomeView
-
         HomeView(self.page)

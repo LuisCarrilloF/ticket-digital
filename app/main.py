@@ -9,7 +9,7 @@ def main(page: ft.Page):
     page.window.width = 700
     page.window.max_width = 700
     page.padding = 0
-    page.bgcolor = "#F4EECD"
+    page.bgcolor = "#EEEEEE"
     HomeView(page)
 
 

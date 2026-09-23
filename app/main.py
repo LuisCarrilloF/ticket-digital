@@ -1,4 +1,5 @@
 import flet as ft
+from pathlib import Path
 
 from views.home_view import HomeView
 
@@ -14,4 +15,7 @@ def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    ft.run(main,assets_dir="app/assets",)
+    ft.run(
+        main,
+        assets_dir=str(Path(__file__).resolve().parent / "assets"),
+    )

@@ -2,6 +2,8 @@ from models.ticket import Ticket
 from xml.sax.saxutils import escape
 from io import BytesIO
 
+from services.image_loader import image_source
+
 
 def format_amount(amount) -> str:
 	return f"$ {amount:,.2f}"
@@ -99,89 +101,140 @@ def generate_ticket_svg(ticket: Ticket, ticket_number: str, date_text: str) -> s
 def generate_ticket_png(ticket: Ticket, ticket_number: str, date_text: str) -> bytes:
 	from PIL import Image, ImageDraw, ImageFont
 	from pathlib import Path
-	import textwrap
 
-	font_path = Path("C:/Windows/Fonts/arial.ttf")
-	font_bold_path = Path("C:/Windows/Fonts/arialbd.ttf")
-	if font_path.exists() and font_bold_path.exists():
-		font_regular = ImageFont.truetype(str(font_path), 20)
-		font_bold = ImageFont.truetype(str(font_bold_path), 20)
-		font_small = ImageFont.truetype(str(font_path), 16)
-		font_label = ImageFont.truetype(str(font_bold_path), 15)
-		font_total = ImageFont.truetype(str(font_bold_path), 32)
-	else:
-		font_regular = ImageFont.load_default()
-		font_bold = ImageFont.load_default()
-		font_small = font_regular
-		font_label = font_bold
-		font_total = font_bold
+	assets_dir = Path(__file__).resolve().parent.parent / "assets"
+	font_dir = assets_dir / "fonts"
 
+	def load_font(size, bold=False):
+		font_names = ("DejaVuSans-Bold.ttf", "NotoSans-Bold.ttf") if bold else ("DejaVuSans.ttf", "NotoSans-Regular.ttf")
+		for font_name in font_names:
+			font_file = font_dir / font_name
+			if font_file.exists():
+				try:
+					return ImageFont.truetype(str(font_file), size)
+				except OSError:
+					pass
+		return ImageFont.load_default()
+
+	font_regular = load_font(20)
+	font_bold = load_font(20, bold=True)
+	font_small = load_font(16)
+	font_label = load_font(15, bold=True)
+	font_total = load_font(32, bold=True)
 	width = 720
 	margin = 30
-	row_height = 88
-	header_height = 190
-	height = max(980, 760 + len(ticket.items) * row_height)
-	image = Image.new("RGB", (width, height), "#F7F5F0")
+	content_width = width - (margin * 2)
+	padding = 25
+	image = Image.new("RGB", (width, 4000), "#F7F5F0")
 	draw = ImageDraw.Draw(image)
 
-	def text(position, value, fill="#000000", font=font_regular, anchor=None):
-		draw.text(position, value, fill=fill, font=font, anchor=anchor)
+	def wrap(value, font, max_width):
+		words = str(value or "").split()
+		lines = []
+		current = ""
+		for word in words:
+			candidate = f"{current} {word}".strip()
+			if current and draw.textlength(candidate, font=font) > max_width:
+				lines.append(current)
+				current = word
+			else:
+				current = candidate
+		if current:
+			lines.append(current)
+		return lines or [""]
 
-	draw.rounded_rectangle(
-		(margin, 25, width - margin, header_height),
-		radius=24,
-		fill="#000D55",
-	)
-	logo_box = (margin + 20, 50, margin + 130, 160)
+	def line_height(font):
+		return max(20, draw.textbbox((0, 0), "Ag", font=font)[3] + 5)
+
+	def draw_lines(x, y, value, font, fill, max_width, spacing=4):
+		lines = wrap(value, font, max_width)
+		height = line_height(font)
+		for line in lines:
+			draw.text((x, y), line, fill=fill, font=font)
+			y += height + spacing
+		return y, len(lines)
+
+	def load_logo():
+		try:
+			logo_data = image_source(ticket.business_logo or "")
+			if not isinstance(logo_data, bytes):
+				return None
+			with Image.open(BytesIO(logo_data)) as source:
+				logo = source.convert("RGBA")
+				logo.thumbnail((100, 100))
+				return logo.copy()
+		except (OSError, ValueError, TypeError):
+			return None
+
+	header_top = 25
+	description = ticket.business_description or ""
+	description_lines = wrap(description, font_small, 365)
+	header_height = max(190, 55 + len(description_lines) * 24 + 55)
+	draw.rounded_rectangle((margin, header_top, width - margin, header_top + header_height), radius=24, fill="#000D55")
+	logo_box = (margin + 20, header_top + 25, margin + 130, header_top + 135)
 	draw.rounded_rectangle(logo_box, radius=18, fill="#FFFFFF")
-	logo_file = None
-	if not ticket.business_logo.startswith("base64:"):
-		logo_file = Path(__file__).resolve().parent.parent / "assets" / ticket.business_logo
-	if logo_file and logo_file.exists():
-		with Image.open(logo_file) as logo:
-			logo.thumbnail((88, 88))
-			image.paste(logo.convert("RGB"), (margin + 31, 61))
+	logo = load_logo()
+	if logo:
+		logo_x = logo_box[0] + (110 - logo.width) // 2
+		logo_y = logo_box[1] + (110 - logo.height) // 2
+		image.paste(logo, (logo_x, logo_y), logo)
 
-	text((margin + 145, 58), ticket.business_name, "#FFFFFF", font_bold)
-	description = "Renta de muebles y artículos"
-	for index, line in enumerate(textwrap.wrap(description, width=34)[:2]):
-		text((margin + 145, 92 + index * 24), line, "#F2F3F8", font_small)
-	draw.rounded_rectangle((margin + 145, 138, margin + 360, 174), radius=8, fill="#24306E")
-	text((margin + 160, 147), f"TICKET #{ticket_number}", "#FFFFFF", font_label)
+	draw_lines(margin + 145, header_top + 28, ticket.business_name, font_bold, "#FFFFFF", 365)
+	draw_lines(margin + 145, header_top + 65, description, font_small, "#F2F3F8", 365)
+	ticket_y = header_top + header_height - 45
+	draw.rounded_rectangle((margin + 145, ticket_y, margin + 360, ticket_y + 36), radius=8, fill="#24306E")
+	draw.text((margin + 160, ticket_y + 9), f"TICKET #{ticket_number}", fill="#FFFFFF", font=font_label)
 
-	info_top = header_height + 30
-	draw.rounded_rectangle((margin, info_top, width - margin, info_top + 190), radius=22, fill="#FFFFFF", outline="#E1DDD7")
-	text((margin + 25, info_top + 30), date_text, "#817A73", font_small)
-	text((margin + 25, info_top + 78), ticket.customer["full_name"], "#000000", font_bold)
-	text((margin + 25, info_top + 115), f"Teléfono: {ticket.customer['phone']}", "#555555", font_small)
-	text((margin + 25, info_top + 150), f"Dirección: {ticket.customer['address']}", "#555555", font_small)
+	info_top = header_top + header_height + 30
+	info_lines = []
+	info_lines.extend(wrap(date_text, font_small, content_width - padding * 2))
+	info_lines.extend(wrap(ticket.customer.get("full_name", ""), font_bold, content_width - padding * 2))
+	info_lines.extend(wrap(f"Teléfono: {ticket.customer.get('phone', '')}", font_small, content_width - padding * 2))
+	info_lines.extend(wrap(f"Dirección: {ticket.customer.get('address', '')}", font_small, content_width - padding * 2))
+	info_height = 35 + sum(line_height(font_small) + 4 for _ in info_lines[:1]) + 15
+	info_height += sum(line_height(font_bold) + 4 for _ in wrap(ticket.customer.get("full_name", ""), font_bold, content_width - padding * 2))
+	info_height += sum(line_height(font_small) + 4 for _ in info_lines[2:]) + 20
+	draw.rounded_rectangle((margin, info_top, width - margin, info_top + info_height), radius=22, fill="#FFFFFF", outline="#E1DDD7")
+	y = info_top + 30
+	y, _ = draw_lines(margin + padding, y, date_text, font_small, "#817A73", content_width - padding * 2)
+	y += 12
+	y, _ = draw_lines(margin + padding, y, ticket.customer.get("full_name", ""), font_bold, "#000000", content_width - padding * 2)
+	y += 4
+	y, _ = draw_lines(margin + padding, y, f"Teléfono: {ticket.customer.get('phone', '')}", font_small, "#555555", content_width - padding * 2)
+	draw_lines(margin + padding, y, f"Dirección: {ticket.customer.get('address', '')}", font_small, "#555555", content_width - padding * 2)
 
-	concepts_top = info_top + 220
-	concepts_bottom = concepts_top + 75 + len(ticket.items) * row_height + 100
-	draw.rounded_rectangle(
-		(margin, concepts_top, width - margin, concepts_bottom),
-		radius=22,
-		fill="#FFFFFF",
-		outline="#E1DDD7",
-	)
-	text((margin + 25, concepts_top + 35), "CONCEPTOS", "#817A73", font_label)
-	y = concepts_top + 85
+	concepts_top = info_top + info_height + 20
+	row_data = []
 	for item in ticket.items:
-		text((margin + 25, y), item.concept, "#000000", font_bold)
-		text((width - margin - 25, y), format_amount(item.subtotal), "#000D55", font_bold, anchor="ra")
-		text((margin + 25, y + 30), f"{item.quantity} x {format_amount(item.unit_price)}", "#555555", font_small)
-		y += row_height
+		concept_lines = wrap(item.concept, font_bold, content_width - padding * 2 - 180)
+		row_data.append((item, concept_lines, max(70, len(concept_lines) * (line_height(font_bold) + 3) + 42)))
+	concepts_height = 60 + sum(row[2] for row in row_data) + 125
+	draw.rounded_rectangle((margin, concepts_top, width - margin, concepts_top + concepts_height), radius=22, fill="#FFFFFF", outline="#E1DDD7")
+	draw.text((margin + padding, concepts_top + 30), "CONCEPTOS", fill="#817A73", font=font_label)
+	y = concepts_top + 75
+	for item, concept_lines, row_height in row_data:
+		for line in concept_lines:
+			draw.text((margin + padding, y), line, fill="#000000", font=font_bold)
+			y += line_height(font_bold) + 3
+		draw.text((width - margin - padding, y - len(concept_lines) * (line_height(font_bold) + 3)), format_amount(item.subtotal), fill="#000D55", font=font_bold, anchor="ra")
+		draw.text((margin + padding, y + 5), f"{item.quantity} x {format_amount(item.unit_price)}", fill="#555555", font=font_small)
+		y += row_height - len(concept_lines) * (line_height(font_bold) + 3) - 5
 
-	draw.rectangle((margin, y + 20, width - margin, y + 125), fill="#FFF3C4")
-	text((margin + 25, y + 60), "TOTAL A PAGAR", "#000000", font_bold)
-	text((width - margin - 25, y + 55), format_amount(ticket.total), "#000D55", font_total, anchor="ra")
+	total_top = concepts_top + concepts_height - 125
+	draw.rectangle((margin, total_top, width - margin, total_top + 105), fill="#FFF3C4")
+	draw.text((margin + padding, total_top + 38), "TOTAL A PAGAR", fill="#000000", font=font_bold)
+	draw.text((width - margin - padding, total_top + 30), format_amount(ticket.total), fill="#000D55", font=font_total, anchor="ra")
 
+	bottom = concepts_top + concepts_height
 	if ticket.customer.get("notes"):
-		notes_y = y + 135
-		draw.rounded_rectangle((margin, notes_y, width - margin, notes_y + 100), radius=18, fill="#FFF3C4")
-		text((margin + 25, notes_y + 30), "NOTAS", "#000D55", font_label)
-		text((margin + 25, notes_y + 65), ticket.customer["notes"], "#000000", font_small)
+		notes_lines = wrap(ticket.customer["notes"], font_small, content_width - padding * 2)
+		notes_height = 55 + len(notes_lines) * (line_height(font_small) + 3)
+		draw.rounded_rectangle((margin, bottom + 15, width - margin, bottom + 15 + notes_height), radius=18, fill="#FFF3C4")
+		draw.text((margin + padding, bottom + 38), "NOTAS", fill="#000D55", font=font_label)
+		draw.multiline_text((margin + padding, bottom + 65), "\n".join(notes_lines), fill="#000000", font=font_small, spacing=3)
+		bottom += 15 + notes_height
 
+	image = image.crop((0, 0, width, bottom + 30))
 	output = BytesIO()
 	image.save(output, format="PNG")
 	return output.getvalue()

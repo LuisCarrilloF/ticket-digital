@@ -19,6 +19,7 @@ class Ticket:
 	customer: dict
 	items: list[TicketItem]
 	business_logo: str = ""
+	business_description: str = ""
 
 	@property
 	def total(self) -> Decimal:

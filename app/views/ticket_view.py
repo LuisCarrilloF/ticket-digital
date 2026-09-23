@@ -332,6 +332,7 @@ class TicketView:
             self.customer,
             self.items.copy(),
             business_logo=self.business.logo,
+			business_description=self.business.description,
         )
         self._mostrar_ticket_generado(ticket)
 

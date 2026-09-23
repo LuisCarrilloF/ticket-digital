@@ -1,6 +1,4 @@
-from pathlib import Path
-import shutil
-import uuid
+import base64
 
 import flet as ft
 
@@ -12,6 +10,7 @@ class AddNegocioView:
         self.page = page
         self.on_saved = on_saved
         self.selected_image_path = None
+        self.selected_image_data = None
         self.file_picker = ft.FilePicker()
         self.page.services.append(self.file_picker)
         self._build()
@@ -33,8 +32,19 @@ class AddNegocioView:
             border_radius= 12,
             border_color= "grey"
         )
+        self.services_field = ft.TextField(
+            label="Servicios o conceptos frecuentes",
+            hint_text="Ej. Sillas, Mesas, Manteles, Carpas",
+            multiline=True,
+            min_lines=2,
+            max_lines=3,
+            color="grey",
+            bgcolor="#FFFFFF",
+            border_radius=12,
+            border_color="grey",
+        )
         self.image_preview = ft.Image(
-            src="logos/corexis.png",
+            src="logos/business_d03b31717a2b49fe92efe014dad60809.png",
             width=120,
             height=120,
         )
@@ -86,6 +96,12 @@ class AddNegocioView:
                 self.image_error,
                 self.name_field,
                 self.description_field,
+                self.services_field,
+                ft.Text(
+                    "Sepáralos con comas para mostrarlos al crear tickets.",
+                    size=12,
+                    color="grey",
+                ),
                 ft.Row(
                     controls=[
                         ft.OutlinedButton(
@@ -130,13 +146,22 @@ class AddNegocioView:
         files = await self.file_picker.pick_files(
             allow_multiple=False,
             file_type=ft.FilePickerFileType.IMAGE,
+            with_data=True,
         )
 
         if not files:
             return
 
         self.selected_image_path = files[0].path
-        self.image_preview.src = self.selected_image_path
+        if files[0].bytes:
+            self.selected_image_data = base64.b64encode(files[0].bytes).decode("ascii")
+            self.image_preview.src = self.selected_image_data
+        elif self.selected_image_path:
+            self.image_preview.src = self.selected_image_path
+        else:
+            self.image_error.value = "No se pudo leer la imagen seleccionada"
+            self.image_error.update()
+            return
         self.image_error.value = ""
         self.page.update()
 
@@ -152,17 +177,15 @@ class AddNegocioView:
             self.image_error.update()
             return
 
-        logos_directory = Path(__file__).resolve().parent.parent / "assets" / "logos"
-        logos_directory.mkdir(parents=True, exist_ok=True)
-        extension = Path(self.selected_image_path).suffix.lower() or ".png"
-        logo_name = f"business_{uuid.uuid4().hex}{extension}"
-        destination = logos_directory / logo_name
-        shutil.copy2(self.selected_image_path, destination)
-
         business = Business(
             name=name,
             description=self.description_field.value.strip() or "Nuevo negocio",
-            logo=f"logos/{logo_name}",
+            logo=f"base64:{self.selected_image_data}",
+            services=[
+                service.strip()
+                for service in (self.services_field.value or "").split(",")
+                if service.strip()
+            ],
         )
         self.page.services.remove(self.file_picker)
         self.on_saved(business)

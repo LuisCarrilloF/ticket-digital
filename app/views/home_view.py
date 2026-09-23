@@ -1,7 +1,8 @@
 import flet as ft
 
 from models.business import Business
-from services.storage import load_businesses, save_businesses
+from services.image_loader import image_source
+from services.storage import clear_businesses, load_businesses, save_businesses
 from views.add_negocio_view import AddNegocioView
 from views.client_view import ClientView
 
@@ -224,7 +225,7 @@ class HomeView:
     def _create_business_card(self, business: Business):
 
         logo = ft.Image(
-            src=business.logo,
+            src=image_source(business.logo),
             width=55,
             height=55,
         )
@@ -265,6 +266,13 @@ class HomeView:
 
                 informacion,
 
+                ft.IconButton(
+                    icon=ft.Icons.DELETE_OUTLINE,
+                    tooltip="Eliminar negocio",
+                    icon_color="#B00020",
+                    on_click=lambda e, b=business: self._delete_business(b),
+                ),
+
                 ft.Text(
                     "›",
                     size=30,
@@ -296,6 +304,18 @@ class HomeView:
     def _select_business(self, business: Business):
         ClientView(self.page, business)
 
+    def _delete_business(self, business: Business):
+        self.businesses = [
+            b for b in self.businesses
+            if not (
+                b.name == business.name
+                and b.description == business.description
+                and b.logo == business.logo
+            )
+        ]
+        save_businesses(self.businesses)
+        self._build()
+
     # ============================================================
     # AGREGAR NEGOCIO
     # ============================================================
@@ -307,4 +327,9 @@ class HomeView:
         if business is not None:
             self.businesses.append(business)
             save_businesses(self.businesses)
+        self._build()
+
+    def _clear_businesses(self, e):
+        self.businesses = []
+        clear_businesses()
         self._build()

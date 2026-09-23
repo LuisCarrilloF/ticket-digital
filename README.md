@@ -12,3 +12,18 @@ py -3.13 -m venv venv
 Activas el entorno con:
 `ctrl`+`shft`+`p`
 seleccionas el entorno recomendado y descargas las dependencias del archivo `requirements.txt`
+ 
+esto con 
+```
+pip instal requirements.txt
+```
+
+para correr el programa de forma local se usa el siguiente comando:
+```
+flet run
+```
+
+Para poder creear el apk para tu celular ejecuta:
+```
+.\venv\Scripts\flet.exe build apk
+```

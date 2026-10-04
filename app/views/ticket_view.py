@@ -639,6 +639,37 @@ class TicketView:
             self._mostrar_mensaje("No hay una imagen de ticket para compartir.", "#B3261E")
             return
 
+        if os.name == "nt":
+            temp_dir = Path(tempfile.gettempdir()) / "ticket_digital"
+            ticket_path = temp_dir / "ticket.png"
+            try:
+                temp_dir.mkdir(parents=True, exist_ok=True)
+                ticket_path.write_bytes(self.ticket_imagen)
+                archivo = ft.ShareFile.from_path(str(ticket_path), name="ticket.png")
+                resultado = await self.share.share_files(
+                    [archivo],
+                    title="Compartir ticket",
+                )
+                if resultado.status == ft.ShareResultStatus.DISMISSED:
+                    self._mostrar_mensaje("Compartir cancelado.", "#817A73")
+                else:
+                    self._mostrar_mensaje("Ticket listo para compartir.", "#1B5E20")
+            except Exception:
+                try:
+                    if not ticket_path.is_file():
+                        raise OSError("No se creó el archivo PNG")
+                    os.startfile(str(temp_dir))
+                    self._mostrar_mensaje(
+                        "No se abrió el menú para compartir. El PNG quedó en la carpeta del ticket.",
+                        "#817A73",
+                    )
+                except OSError:
+                    self._mostrar_mensaje(
+                        "No se pudo compartir ni abrir el archivo del ticket.",
+                        "#B3261E",
+                    )
+            return
+
         archivo = ft.ShareFile.from_bytes(
             self.ticket_imagen,
             mime_type="image/png",
@@ -656,28 +687,10 @@ class TicketView:
             else:
                 self._mostrar_mensaje("Ticket listo para compartir.", "#1B5E20")
         except Exception:
-            if os.name != "nt":
-                self._mostrar_mensaje(
-                    "No se pudo abrir el menú nativo para compartir el ticket.",
-                    "#B3261E",
-                )
-                return
-
-            try:
-                temp_dir = Path(tempfile.gettempdir()) / "ticket_digital"
-                temp_dir.mkdir(parents=True, exist_ok=True)
-                ticket_path = temp_dir / "ticket.png"
-                ticket_path.write_bytes(self.ticket_imagen)
-                os.startfile(str(temp_dir))
-                self._mostrar_mensaje(
-                    "El menú de compartir no está disponible. Se abrió la carpeta del ticket.",
-                    "#817A73",
-                )
-            except OSError:
-                self._mostrar_mensaje(
-                    "No se pudo compartir ni abrir el archivo del ticket.",
-                    "#B3261E",
-                )
+            self._mostrar_mensaje(
+                "No se pudo abrir el menú nativo para compartir el ticket.",
+                "#B3261E",
+            )
 
     def _mostrar_mensaje(self, texto, color):
         self.page.snack_bar = ft.SnackBar(content=ft.Text(texto), bgcolor=color)
